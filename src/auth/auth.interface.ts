@@ -1,1 +1,1 @@
-export interface Auth {}
+export type TypeRole = 'admin' | 'user' | 'undefined'
