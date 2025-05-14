@@ -1,12 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Put, Query, UsePipes, ValidationPipe } from '@nestjs/common';
-import { UserService } from './user.service'
-import { Auth } from 'src/auth/decorators/auth.decorator'
+import {
+	Body,
+	Controller,
+	Delete,
+	Get,
+	HttpCode,
+	NotFoundException,
+	Param,
+	Post,
+	Put,
+	Query,
+	UsePipes,
+	ValidationPipe,
+} from '@nestjs/common'
 import { User } from './decorators/user.decorator'
-import { UpdateDto } from './dto/update'
+import { UserService } from './user.service'
+import { Auth } from 'src/auth/decorators/Auth.decorator'
+import { UpdateDto } from './dto/update-dto'
+import { IdValidationPipe } from 'src/pipes/id.validation.pipe'
+import { UserModel } from './user.model'
+import { Types } from 'mongoose'
 
 @Controller('users')
 export class UserController {
-
 	constructor(private readonly userService: UserService) {}
 
 	@Get('profile')
@@ -14,7 +29,6 @@ export class UserController {
 	async getProfile(@User('_id') _id: string) {
 		return this.userService.byId(_id)
 	}
-
 
 	@UsePipes(new ValidationPipe())
 	@Put('profile')
@@ -24,8 +38,22 @@ export class UserController {
 		return this.userService.updateProfile(_id, data)
 	}
 
+	@Get('profile/favorites')
+	@Auth()
+	async getFavorites(@User('_id') _id: string) {
+		return this.userService.getFavoriteMovies(_id)
+	}
 
-	// Admin Side
+	@Post('profile/favorites')
+	@HttpCode(200)
+	@Auth()
+	async toggleFavorite(
+		@Body('movieId', IdValidationPipe) movieId: Types.ObjectId,
+		@User() user: UserModel
+	) {
+		return this.userService.toggleFavorite(movieId, user)
+	}
+
 	@Get('count')
 	@Auth('admin')
 	async getCountUsers() {
@@ -40,26 +68,25 @@ export class UserController {
 
 	@Get(':id')
 	@Auth('admin')
-	async getUser(@Param('id', ValidationPipe) id: string) {
+	async getUser(@Param('id', IdValidationPipe) id: string) {
 		return this.userService.byId(id)
 	}
-
 
 	@UsePipes(new ValidationPipe())
 	@Put(':id')
 	@HttpCode(200)
 	@Auth('admin')
-	async updateUser(@Param('id', ValidationPipe) id: string, @Body() data: UpdateDto) {
+	async updateUser(
+		@Param('id', IdValidationPipe) id: string,
+		@Body() data: UpdateDto
+	) {
 		return this.userService.updateProfile(id, data)
 	}
 
-
 	@Delete(':id')
-	@HttpCode(200)
 	@Auth('admin')
-	async deleteUser(@Param('id', ValidationPipe) id: string) {
-		return this.userService.deleteUser(id)
+	async delete(@Param('id', IdValidationPipe) id: string) {
+		const deletedDoc = await this.userService.delete(id)
+		if (!deletedDoc) throw new NotFoundException('Movie not found')
 	}
-
-
 }
